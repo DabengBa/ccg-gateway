@@ -4,7 +4,7 @@
       <!-- Timeout Settings -->
       <el-col :span="12">
         <el-card class="config-card">
-          <template #header>全局配置</template>
+          <template #header>基础配置</template>
           <el-form :model="timeoutForm" label-width="140px">
             <el-form-item label="流式首字节超时">
               <el-input-number v-model="timeoutForm.stream_first_byte_timeout" :min="1" />
@@ -28,7 +28,7 @@
       <!-- CLI Settings -->
       <el-col :span="12">
         <el-card class="config-card">
-          <template #header>CLI 配置</template>
+          <template #header>CLI全局配置</template>
           <el-tabs v-model="activeCliTab">
             <el-tab-pane label="ClaudeCode" name="claude_code">
               <CliSettingsForm cli-type="claude_code" :settings="settingsStore.settings?.cli_settings?.claude_code" @save="saveCli" />
