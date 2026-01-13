@@ -78,7 +78,7 @@
           <el-input v-model="form.name" placeholder="服务商名称" />
         </el-form-item>
         <el-form-item label="Base URL" required>
-          <el-input v-model="form.base_url" placeholder="https://api.example.com" />
+          <el-input v-model="form.base_url" :placeholder="baseUrlPlaceholder" />
         </el-form-item>
         <el-form-item :label="activeCliType === 'claude_code' ? 'API Token' : 'API Key'" required>
           <el-input v-model="form.api_key" :placeholder="activeCliType === 'claude_code' ? 'API Token' : 'API Key'" />
@@ -158,6 +158,11 @@ const form = ref({
   failure_threshold: 3,
   blacklist_minutes: 10,
   model_maps: [] as FormModelMap[]
+})
+
+const baseUrlPlaceholder = computed(() => {
+  if (activeCliType.value === 'codex') return 'https://api.example.com/v1'
+  return 'https://api.example.com'
 })
 
 function resetForm() {
