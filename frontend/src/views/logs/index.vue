@@ -103,9 +103,10 @@
             </el-form-item>
             <el-form-item label="事件类型">
               <el-select v-model="systemFilters.event_type" clearable placeholder="全部" style="width: 150px">
-                <el-option label="服务商失败" value="provider_failure" />
-                <el-option label="服务商拉黑" value="provider_blacklist" />
-                <el-option label="服务商切换" value="provider_switch" />
+                <el-option label="服务商失败" value="服务商失败" />
+                <el-option label="服务商黑名单" value="服务商黑名单" />
+                <el-option label="服务商切换" value="服务商切换" />
+                <el-option label="失败重置" value="失败重置" />
               </el-select>
             </el-form-item>
             <el-form-item label="服务商">
@@ -131,9 +132,7 @@
                 <el-tag :type="getLevelType(row.level)" size="small">{{ row.level }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="event_type" label="事件类型" width="130">
-              <template #default="{ row }">{{ getEventTypeLabel(row.event_type) }}</template>
-            </el-table-column>
+            <el-table-column prop="event_type" label="事件类型" width="130" />
             <el-table-column prop="provider_name" label="服务商" width="150" show-overflow-tooltip />
             <el-table-column prop="message" label="消息" show-overflow-tooltip />
             <el-table-column label="详情" width="80">
@@ -439,15 +438,6 @@ function getStatusType(status: number | null): string {
   if (status >= 200 && status < 300) return 'success'
   if (status >= 400) return 'danger'
   return 'warning'
-}
-
-function getEventTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    provider_failure: '服务商失败',
-    provider_blacklist: '服务商拉黑',
-    provider_switch: '服务商切换'
-  }
-  return labels[type] || type
 }
 
 function getFullClientUrl(): string {

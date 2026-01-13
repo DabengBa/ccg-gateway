@@ -51,8 +51,8 @@ class RoutingService:
                 # Log if we skipped some providers
                 if skipped_providers:
                     await _create_system_log(
-                        self.db, "INFO", "provider_switch",
-                        f"Switched to provider '{provider.name}' (skipped blacklisted: {', '.join(skipped_providers)})",
+                        self.db, "INFO", "服务商切换",
+                        f"切换到服务商 '{provider.name}' (跳过黑名单: {', '.join(skipped_providers)})",
                         provider_name=provider.name,
                         details={"skipped": skipped_providers, "selected": provider.name}
                     )
