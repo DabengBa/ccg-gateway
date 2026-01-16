@@ -8,6 +8,7 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd() + '/..', '')
   const gatewayPort = env.GATEWAY_PORT || '7788'
+  const uiPort = parseInt(env.UI_PORT || '3000', 10)
 
   return {
     plugins: [
@@ -28,7 +29,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      port: 3000,
+      port: uiPort,
       proxy: {
         '/admin': {
           target: `http://127.0.0.1:${gatewayPort}`,

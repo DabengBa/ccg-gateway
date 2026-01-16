@@ -10,9 +10,11 @@ cd /d "%~dp0"
 
 :: Load .env file
 set GATEWAY_PORT=7788
+set UI_PORT=3000
 if exist ".env" (
     for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
         if "%%a"=="GATEWAY_PORT" set GATEWAY_PORT=%%b
+        if "%%a"=="UI_PORT" set UI_PORT=%%b
     )
 )
 
@@ -70,7 +72,7 @@ start "CCG Gateway - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\ac
 timeout /t 3 /nobreak >nul
 
 :: Start frontend (new window)
-echo [Frontend] Starting... (port 3000)
+echo [Frontend] Starting... (port %UI_PORT%)
 start "CCG Gateway - Frontend" cmd /k "cd /d %~dp0frontend && pnpm dev"
 
 :: Wait for frontend
@@ -82,12 +84,12 @@ echo   Services Started
 echo ========================================
 echo.
 echo   Backend API:  http://127.0.0.1:%GATEWAY_PORT%
-echo   Frontend UI:  http://127.0.0.1:3000
+echo   Frontend UI:  http://127.0.0.1:%UI_PORT%
 echo.
 echo   Press any key to open browser...
 pause >nul
 
-start http://127.0.0.1:3000
+start http://127.0.0.1:%UI_PORT%
 
 echo.
 echo   To stop services, run stop.bat
