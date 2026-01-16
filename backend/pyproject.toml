@@ -23,10 +23,3 @@ desktop = [
     "pillow>=10.0",
     "pyinstaller>=6.0",
 ]
-
-[tool.setuptools.packages.find]
-include = ["app*"]
-
-[[tool.uv.index]]
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-default = true

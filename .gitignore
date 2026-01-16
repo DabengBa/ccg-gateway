@@ -34,6 +34,5 @@ Thumbs.db
 # Build artifacts
 backend/build/
 backend/dist/
-backend/dist2/
 *.spec.bak
 tmpclaude-*
