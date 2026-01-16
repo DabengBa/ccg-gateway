@@ -319,21 +319,22 @@ class ProxyService:
             await self.provider_service.record_failure(provider.id)
             await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
             # Record error log
-            try:
-                await self.log_service.create_request_log(
-                    **log_ctx,
-                    success=False,
-                    status_code=response.status_code,
-                    elapsed_ms=elapsed,
-                    provider_status=response.status_code,
-                    provider_headers=dict(response.headers),
-                    provider_body=error_body.decode("utf-8", errors="replace"),
-                    response_status=response.status_code,
-                    response_headers=dict(response.headers),
-                    response_body=error_body.decode("utf-8", errors="replace"),
-                )
-            except:
-                pass
+            if debug_log:
+                try:
+                    await self.log_service.create_request_log(
+                        **log_ctx,
+                        success=False,
+                        status_code=response.status_code,
+                        elapsed_ms=elapsed,
+                        provider_status=response.status_code,
+                        provider_headers=dict(response.headers),
+                        provider_body=error_body.decode("utf-8", errors="replace"),
+                        response_status=response.status_code,
+                        response_headers=dict(response.headers),
+                        response_body=error_body.decode("utf-8", errors="replace"),
+                    )
+                except:
+                    pass
             return Response(content=error_body, status_code=response.status_code, media_type=response.headers.get("content-type"))
 
         first_byte_time: Optional[float] = None

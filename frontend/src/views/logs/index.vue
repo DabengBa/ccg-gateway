@@ -8,11 +8,11 @@
         </div>
       </template>
       <el-form :inline="true">
-        <el-form-item label="启用日志记录">
+        <el-form-item label="记录请求日志">
           <el-switch v-model="logEnabled" @change="updateLogSettings" />
         </el-form-item>
         <el-form-item>
-          <span class="tip">开启后记录请求/响应详情到数据库</span>
+          <span class="tip">系统日志始终记录</span>
         </el-form-item>
       </el-form>
     </el-card>
