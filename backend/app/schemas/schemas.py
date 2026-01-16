@@ -291,3 +291,25 @@ class SystemLogListResponse(BaseModel):
 
 class ClearLogsRequest(BaseModel):
     before_timestamp: Optional[int] = None
+
+
+# WebDAV Schemas
+class WebdavSettingsResponse(BaseModel):
+    url: str
+    username: str
+    password: str
+
+    class Config:
+        from_attributes = True
+
+
+class WebdavSettingsUpdate(BaseModel):
+    url: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
+class WebdavTestRequest(BaseModel):
+    url: str
+    username: str
+    password: str

@@ -188,3 +188,17 @@ class SystemLog(Base):
     provider_name = Column(String(100), nullable=True)
     message = Column(Text, nullable=False)
     details = Column(Text, nullable=True)  # JSON details
+
+
+class WebdavSettings(Base):
+    __tablename__ = "webdav_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    url = Column(String(500), nullable=False, default="")
+    username = Column(String(100), nullable=False, default="")
+    password = Column(String(500), nullable=False, default="")
+    updated_at = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_webdav_singleton"),
+    )

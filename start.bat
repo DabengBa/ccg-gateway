@@ -18,44 +18,12 @@ if exist ".env" (
     )
 )
 
-:: Check Python
-where python >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python not found. Please install Python 3.10+
-    pause
-    exit /b 1
-)
-
-:: Check pnpm
-where pnpm >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] pnpm not found. Please install: npm install -g pnpm
-    pause
-    exit /b 1
-)
-
-:: Init backend venv
-if not exist "backend\venv" (
-    echo [Backend] Creating virtual environment...
-    cd backend
-    python -m venv venv
-    call venv\Scripts\activate.bat
-    pip install -r requirements.txt -q
-    cd ..
-    echo [Backend] Virtual environment created
-) else (
-    echo [Backend] Virtual environment exists
-)
-
 :: Init frontend dependencies
 if not exist "frontend\node_modules" (
     echo [Frontend] Installing dependencies...
     cd frontend
     pnpm install
     cd ..
-    echo [Frontend] Dependencies installed
-) else (
-    echo [Frontend] Dependencies exist
 )
 
 echo.
@@ -64,18 +32,16 @@ echo   Starting Services
 echo ========================================
 echo.
 
-:: Start backend (new window)
+:: Start backend
 echo [Backend] Starting... (port %GATEWAY_PORT%)
-start "CCG Gateway - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && uvicorn app.main:app --host 127.0.0.1 --port %GATEWAY_PORT% --reload"
+start "CCG Gateway - Backend" cmd /k "cd /d %~dp0backend && uv run uvicorn app.main:app --host 127.0.0.1 --port %GATEWAY_PORT% --reload"
 
-:: Wait for backend
 timeout /t 3 /nobreak >nul
 
-:: Start frontend (new window)
+:: Start frontend
 echo [Frontend] Starting... (port %UI_PORT%)
 start "CCG Gateway - Frontend" cmd /k "cd /d %~dp0frontend && pnpm dev"
 
-:: Wait for frontend
 timeout /t 5 /nobreak >nul
 
 echo.
