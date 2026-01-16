@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import providers, settings as settings_api, mcp, prompts, stats, logs, sessions, backup
+from app.api.v1 import providers, settings as settings_api, mcp, prompts, stats, logs, sessions, backup, window
 
 admin_router = APIRouter()
 
@@ -12,3 +12,4 @@ admin_router.include_router(stats.router, prefix="/stats", tags=["stats"])
 admin_router.include_router(logs.router, prefix="/logs", tags=["logs"])
 admin_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 admin_router.include_router(backup.router, prefix="/backup", tags=["backup"])
+admin_router.include_router(window.router, prefix="/window", tags=["window"])
