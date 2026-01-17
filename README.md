@@ -1,7 +1,6 @@
 # CCG Gateway
 
 <div align="center">
-
 **智能 AI 模型网关 | 统一代理 · 负载均衡 · 故障转移**
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
@@ -16,54 +15,101 @@
 
 CCG Gateway 是一个为多种 AI CLI 工具（Claude Code、Codex、Gemini）设计的智能网关服务，提供统一的代理接口、智能负载均衡和自动故障转移能力。支持桌面应用和 Web 服务两种部署模式，让 AI 服务的使用更加稳定可靠。
 
-### ✨ 核心特性
+本项目根据作者自身的实际需求出发而立项，开发过程中大量参考了已有开源项目，具体开源项目列表请见 [致谢](https://github.com/mos1128/ccg-gateway?tab=readme-ov-file#-%E8%87%B4%E8%B0%A2) 。
+
+### 核心特性
 
 - 🎯 **智能路由** - 基于优先级和可用性的自动服务商选择
-- 🔄 **负载均衡** - 多服务商配置，自动分发请求
-- 🛡️ **故障转移** - 实时检测服务商状态，自动切换备用节点
-- 🗺️ **模型映射** - 灵活的模型名称映射，支持多 CLI 工具
+- 🛡️ **故障转移** - 服务商状态异常，自动切换备用服务商
+- 🗺️ **模型映射** - 灵活的模型名称映射
 - 📊 **实时监控** - 完整的请求日志和统计分析
-- 🖥️ **桌面应用** - 基于 PyWebView 的原生桌面体验
-- 🌐 **Web 界面** - 现代化的 Vue 3 管理界面
-- ⚙️ **动态配置** - 运行时修改配置，无需重启服务
+- ⚙️ **预设配置** - 一键注入全局配置、MCP、全局提示词等内容
 
-## 🏗️ 技术架构
+## 🎯快速开始
 
-### 后端技术栈
+安装 [Releases](https://github.com/mos1128/ccg-gateway/releases) 页面最新版本，然后看看下方功能介绍
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Python | 3.10+ | 核心语言 |
-| FastAPI | 0.115+ | 异步 Web 框架 |
-| SQLAlchemy | 2.0+ | 异步 ORM |
-| SQLite | 3.x | 数据存储 |
-| httpx | 0.28+ | 异步 HTTP 客户端 |
-| Pydantic | 2.0+ | 数据验证 |
-| PyWebView | 5.3+ | 桌面应用框架 |
-| uv | latest | 包管理器 |
+### 1. 网关转发
 
-### 前端技术栈
+转发 CLI 的请求到服务商
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Vue | 3.5+ | 前端框架 |
-| TypeScript | 5.9+ | 类型系统 |
-| Element Plus | 2.9+ | UI 组件库 |
-| Pinia | 2.3+ | 状态管理 |
-| Vue Router | 4.5+ | 路由管理 |
-| Vite | 5.4+ | 构建工具 |
-| pnpm | 9.x | 包管理器 |
+- 支持拖拽调整服务商优先级
+- 当前服务商不可用时自动切换到下一个服务商
 
-## 🚀 快速开始
+- 自动拉黑连续失败 N 次的服务商 M 分钟
+
+使用场景：
+
+小帅手上有三个服务商：服务商A每4小时重置额度，服务商B每9小时重置额度，服务商C按量计费。
+
+小帅为了保证可用性和性价比，为服务商A配置拉黑时长为4小时，为服务商B配置拉黑时长为9小时，将服务商C的拖拽到最后作为兜底。
+
+网关会优先转发请求到服务商A，服务商A不可用再转发到服务商B，服务商B不可用再转发到服务商C，当服务商A恢复后继续使用服务商A。
+
+### 2. 模型映射
+
+根据映射规则重命名模型名称，解决服务商模型名称与 CLI 默认模型不一致的问题
+
+- 支持的通配符：`*` - 匹配任意数量字符；`?` - 匹配单个字符
+
+使用场景：
+
+服务商A的模型命名是 `cc-opus-4.5` ，而其他服务商的模型命名都遵循官方是 `claude-opus-4-5-20251101` ，小帅就为服务商A配置了模型映射
+
+```
+*opus* -> cc-opus-4.5
+*haiku* -> cc-haiku-4.5
+```
+
+这样 CLI 无需任何额外配置，所有请求都能正确转发到服务商。
+
+### 3. 配置管理
+
+- **CLI 全局配置**：为各 CLI 预设全局配置，启用网关时自动注入
+- **MCP 配置**：支持配置 MCP ，一键应用到各个 CLI
+- **提示词预设**：支持配置常用提示词，一键应用到各个 CLI
+- **超时设置**：可配置流式和非流式请求的超时时间
+- **备份恢复**：支持配置的导出和导入，支持 webdav 备份
+
+### 4. 请求日志与统计
+
+- **请求日志**：详细记录每个请求的完整信息（请求内容、响应内容、耗时、token用量等）
+- **系统日志**：记录服务商切换、故障、拉黑等系统事件
+
+使用场景：
+
+小帅求知欲强，想知道 CLI 工作时会发送哪些请求，请求的内容是什么。
+
+### 5. 会话管理
+
+可查看各个 CLI 的所有会话。
+
+使用场景：
+
+小帅求知欲强，想看每个会话 AI 思考了什么内容，调用了什么工具，工具的返回结果是什么。
+
+## 🔧 开发指南
 
 ### 环境要求
 
 - Python 3.10+
 - Node.js 18+
-- pnpm 9.x
-- uv (Python 包管理器)
+- pnpm
+- uv
 
-### 安装依赖
+### 方式一：一键启动脚本（推荐）
+
+脚本会自动安装依赖，直接运行脚本即可
+
+```
+# 启动后端服务
+start-backend.bat
+
+# 启动前端服务
+start-frontend.bat
+```
+
+### 方式二：手动安装依赖
 
 ```bash
 # 安装后端依赖
@@ -75,254 +121,6 @@ cd frontend
 pnpm install
 ```
 
-### 开发模式
-
-#### 方式一：使用启动脚本（推荐）
-
-```bash
-# 启动后端服务
-start-backend.bat
-
-# 启动前端服务（新终端）
-start-frontend.bat
-```
-
-#### 方式二：手动启动
-
-```bash
-# 启动后端
-cd backend
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# 启动前端
-cd frontend
-pnpm dev
-```
-
-访问 `http://localhost:5173` 即可使用 Web 界面。
-
-### 桌面应用模式
-
-```bash
-# 构建桌面应用
-build.bat
-
-# 运行桌面应用
-cd backend/dist/ccg-gateway
-ccg-gateway.exe
-```
-
-## 📁 项目结构
-
-```
-ccg-gateway/
-├── backend/                 # 后端服务
-│   ├── app/
-│   │   ├── api/            # API 路由
-│   │   ├── core/           # 核心配置
-│   │   ├── models/         # 数据模型
-│   │   ├── schemas/        # Pydantic 模式
-│   │   ├── services/       # 业务逻辑
-│   │   └── main.py         # 应用入口
-│   ├── pyproject.toml      # Python 依赖配置
-│   └── uv.lock             # 依赖锁定文件
-├── frontend/               # 前端应用
-│   ├── src/
-│   │   ├── api/           # API 接口
-│   │   ├── components/    # Vue 组件
-│   │   ├── stores/        # Pinia 状态
-│   │   ├── types/         # TypeScript 类型
-│   │   ├── views/         # 页面视图
-│   │   └── main.ts        # 应用入口
-│   ├── package.json       # 前端依赖配置
-│   └── vite.config.ts     # Vite 配置
-├── desktop/               # 桌面应用
-│   ├── main.py           # 桌面应用入口
-│   ├── ccg-gateway.spec  # PyInstaller 配置
-│   └── icon.ico          # 应用图标
-├── data/                 # 数据存储目录
-│   ├── ccg_gateway.db   # SQLite 数据库
-│   └── logs/            # 日志文件
-├── build.bat            # 构建脚本
-├── start-backend.bat    # 后端启动脚本
-└── start-frontend.bat   # 前端启动脚本
-```
-
-## 🎯 核心功能
-
-### 1. 智能路由与负载均衡
-
-- **优先级路由**：根据配置的优先级自动选择最优服务商
-- **健康检查**：实时监控服务商状态，自动剔除故障节��
-- **黑名单机制**：临时屏蔽连续失败的服务商，避免重复请求
-- **自动恢复**：定期尝试恢复黑名单中的服务商
-
-### 2. 模型映射管理
-
-支持将客户端请求的模型名映射到不同服务商的实际模型：
-
-```json
-{
-  "cli_type": "claude-code",
-  "client_model": "claude-opus-4",
-  "provider_model": "claude-opus-4-20250514"
-}
-```
-
-### 3. 多 CLI 工具支持
-
-- **Claude Code** - Anthropic 官方 CLI 工具
-- **Codex** - 代码生成专用 CLI
-- **Gemini** - Google AI CLI 工具
-
-每个 CLI 工具独立配置，互不干扰。
-
-### 4. 请求日志与统计
-
-- **详细日志**：记录每个请求的完整信息（请求头、请求体、响应等）
-- **系统日志**：记录服务商切换、故障等系统事件
-- **使用统计**：按日统计各 CLI 工具的使用情况
-- **性能分析**：响应时间、成功率等关键指标
-
-### 5. 配置管理
-
-- **MCP 配置**：支持 Model Context Protocol 配置
-- **提示词预设**：预设常用提示词模板
-- **超时设置**：可配置流式和非流式请求的超时时间
-- **备份恢复**：支持配置的导出和导入
-
-## ⚙️ 配置说明
-
-### 环境变量配置
-
-在 `backend` 目录创建 `.env` 文件：
-
-```env
-# 网关端口
-GATEWAY_PORT=8000
-
-# 日志配置
-LOG_LEVEL=INFO
-LOG_TO_FILE=true
-
-# 数据库路径
-DATABASE_URL=sqlite+aiosqlite:///./data/ccg_gateway.db
-
-# 超时设置（秒）
-STREAM_TIMEOUT=300
-NON_STREAM_TIMEOUT=60
-```
-
-### 服务商配置
-
-通过 Web 界面或 API 配置服务商：
-
-```json
-{
-  "name": "Provider 1",
-  "base_url": "https://api.example.com",
-  "api_key": "your-api-key",
-  "priority": 1,
-  "is_active": true,
-  "cli_type": "claude-code"
-}
-```
-
-## 🔧 开发指南
-
-### 后端开发
-
-```bash
-cd backend
-
-# 安装开发依赖
-uv sync --dev
-
-# 运行测试
-uv run pytest
-
-# 代码格式化
-uv run black app/
-uv run isort app/
-
-# 类型检查
-uv run mypy app/
-```
-
-### 前端开发
-
-```bash
-cd frontend
-
-# 安装依赖
-pnpm install
-
-# 开发模式
-pnpm dev
-
-# 类型检查
-pnpm type-check
-
-# 代码检查
-pnpm lint
-
-# 构建生产版本
-pnpm build
-```
-
-### 桌面应用开发
-
-```bash
-# 开发模式运行
-cd desktop
-uv run python main.py
-
-# 打包应用
-cd ..
-build.bat
-```
-
-## 📦 部署方式
-
-### 方式一：桌面应用（推荐）
-
-适合个人使用，提供原生桌面体验：
-
-1. 运行 `build.bat` 构建应用
-2. 在 `backend/dist/ccg-gateway/` 目录找到可执行文件
-3. 双击运行，自动启动系统托盘应用
-
-### 方式二：Web 服务
-
-适合团队使用或远程访问：
-
-1. 构建前端：`cd frontend && pnpm build`
-2. 配置后端静态文件服务
-3. 使用 systemd/supervisor 管理后端进程
-4. 配置 Nginx 反向代理（可选）
-
-### 方式三：Docker 部署
-
-```bash
-# 构建镜像
-docker build -t ccg-gateway .
-
-# 运行容器
-docker run -d \
-  -p 8000:8000 \
-  -v ./data:/app/data \
-  --name ccg-gateway \
-  ccg-gateway
-```
-
-## 🔒 安全建议
-
-1. **API 密钥管理**：使用环境变量或密钥管理服务存储敏感信息
-2. **访问控制**：在生产环境配置防火墙规则，限制访问来源
-3. **HTTPS**：使用反向代理配置 SSL/TLS 证书
-4. **日志脱敏**：避免在日志中记录完整的 API 密钥
-5. **定期更新**：及时更新依赖包，修复安全漏洞
-
 ## 🤝 贡献指南
 
 欢迎提交 Issue 和 Pull Request！
@@ -333,30 +131,17 @@ docker run -d \
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
-## 📄 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
 ## 🙏 致谢
 
-- [FastAPI](https://fastapi.tiangolo.com/) - 现代化的 Python Web 框架
-- [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
-- [Element Plus](https://element-plus.org/) - 优秀的 Vue 3 组件库
-- [PyWebView](https://pywebview.flowrl.com/) - 轻量级桌面应用框架
+感谢各开源作者的贡献
 
-## 📮 联系方式
-
-如有问题或建议，欢迎通过以下方式联系：
-
-- 提交 [Issue](https://github.com/yourusername/ccg-gateway/issues)
-- 发送邮件至：your.email@example.com
+- [cc-switch](https://github.com/farion1231/cc-switch)  - A cross-platform desktop All-in-One assistant tool for Claude Code, Codex & Gemini CLI.
+- [coding-tool](https://github.com/CooperJiang/coding-tool) - claudecode|codex|gemini cli增强工具.
+- [code-switch-R](https://github.com/Rogers-F/code-switch-R) - Claude Code & Codex 多供应商代理与管理工具
 
 ---
 
 <div align="center">
-
 **如果这个项目对你有帮助，请给一个 ⭐️ Star 支持一下！**
-
-Made with ❤️ by CCG Team
 
 </div>
