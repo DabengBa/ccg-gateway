@@ -97,16 +97,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSettingsStore } from '@/stores/settings'
+import { useUiStore } from '@/stores/ui'
 import CliSettingsForm from './components/CliSettingsForm.vue'
 import * as backupApi from '@/api/backup'
 import type { WebdavSettings, WebdavBackup } from '@/api/backup'
 
 const settingsStore = useSettingsStore()
-const activeCliTab = ref('claude_code')
-const activeBackupTab = ref('local')
+const uiStore = useUiStore()
+const activeCliTab = computed({
+  get: () => uiStore.configActiveCliTab,
+  set: (val) => uiStore.setConfigActiveCliTab(val as 'claude_code' | 'codex' | 'gemini')
+})
+const activeBackupTab = computed({
+  get: () => uiStore.configActiveBackupTab,
+  set: (val) => uiStore.setConfigActiveBackupTab(val as 'local' | 'webdav')
+})
 
 const timeoutForm = ref({
   stream_first_byte_timeout: 30,
@@ -273,6 +281,7 @@ onMounted(() => {
 }
 .backup-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
 }

@@ -180,14 +180,16 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Folder, Delete, ArrowLeft, ChatDotRound, Connection, CopyDocument } from '@element-plus/icons-vue'
 import { useSessionStore } from '@/stores/sessions'
+import { useUiStore } from '@/stores/ui'
 import type { CliType } from '@/types/models'
 import type { ProjectInfo, SessionInfo } from '@/api/sessions'
 
 const sessionStore = useSessionStore()
+const uiStore = useUiStore()
 
 const activeCliType = computed({
-  get: () => sessionStore.currentCliType,
-  set: (val) => sessionStore.setCliType(val as CliType)
+  get: () => uiStore.sessionsActiveCliType,
+  set: (val) => uiStore.setSessionsActiveCliType(val)
 })
 
 const currentProject = computed(() => sessionStore.currentProject)
@@ -217,7 +219,6 @@ const filteredSessions = computed(() => {
 })
 
 function handleCliTypeChange(cliType: string) {
-  sessionStore.setCliType(cliType as CliType)
   sessionStore.clearSessions()
   sessionStore.fetchProjects(1)
 }

@@ -333,9 +333,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
 import { logsApi } from '@/api/logs'
 import { providersApi } from '@/api/providers'
+import { useUiStore } from '@/stores/ui'
 import type { RequestLogListItem, RequestLogDetail, SystemLogItem } from '@/types/models'
 
-const activeTab = ref('request')
+const uiStore = useUiStore()
+const activeTab = computed({
+  get: () => uiStore.logsActiveTab,
+  set: (val) => uiStore.setLogsActiveTab(val as 'request' | 'system')
+})
 const logEnabled = ref(false)
 const providerOptions = ref<string[]>([])
 

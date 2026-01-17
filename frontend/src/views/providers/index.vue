@@ -127,13 +127,15 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import draggable from 'vuedraggable'
 import { useProviderStore } from '@/stores/providers'
+import { useUiStore } from '@/stores/ui'
 import type { Provider, ModelMap, CliType } from '@/types/models'
 
 const providerStore = useProviderStore()
+const uiStore = useUiStore()
 
 const activeCliType = computed({
-  get: () => providerStore.currentCliType as CliType,
-  set: (val) => providerStore.setCliType(val)
+  get: () => uiStore.providersActiveCliType,
+  set: (val) => uiStore.setProvidersActiveCliType(val)
 })
 const showAddDialog = ref(false)
 const editingProvider = ref<Provider | null>(null)

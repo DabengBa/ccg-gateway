@@ -2,13 +2,13 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { sessionsApi, type ProjectInfo, type SessionInfo, type SessionMessage } from '@/api/sessions'
 import type { CliType } from '@/types/models'
+import { useUiStore } from './ui'
 
 export const useSessionStore = defineStore('sessions', () => {
   const projects = ref<ProjectInfo[]>([])
   const sessions = ref<SessionInfo[]>([])
   const messages = ref<SessionMessage[]>([])
   const loading = ref(false)
-  const currentCliType = ref<CliType>('claude_code')
   const currentProject = ref<string>('')
   const currentProjectInfo = ref<ProjectInfo | null>(null)
   const currentSession = ref<string>('')
@@ -20,18 +20,15 @@ export const useSessionStore = defineStore('sessions', () => {
   const sessionTotal = ref(0)
   const pageSize = ref(20)
 
-  function setCliType(cliType: CliType) {
-    currentCliType.value = cliType
-    projectPage.value = 1
-  }
-
-  async function fetchProjects(page?: number) {
+  async function fetchProjects(page?: number, cliType?: CliType) {
     loading.value = true
     if (page !== undefined) {
       projectPage.value = page
     }
     try {
-      const { data } = await sessionsApi.listProjects(currentCliType.value, projectPage.value, pageSize.value)
+      const uiStore = useUiStore()
+      const type = cliType || uiStore.sessionsActiveCliType
+      const { data } = await sessionsApi.listProjects(type, projectPage.value, pageSize.value)
       projects.value = data.items
       projectTotal.value = data.total
     } finally {
@@ -39,7 +36,7 @@ export const useSessionStore = defineStore('sessions', () => {
     }
   }
 
-  async function fetchSessions(projectName: string, page?: number, projectInfo?: ProjectInfo) {
+  async function fetchSessions(projectName: string, page?: number, projectInfo?: ProjectInfo, cliType?: CliType) {
     loading.value = true
     currentProject.value = projectName
     if (projectInfo) {
@@ -49,7 +46,9 @@ export const useSessionStore = defineStore('sessions', () => {
       sessionPage.value = page
     }
     try {
-      const { data } = await sessionsApi.listSessions(currentCliType.value, projectName, sessionPage.value, pageSize.value)
+      const uiStore = useUiStore()
+      const type = cliType || uiStore.sessionsActiveCliType
+      const { data } = await sessionsApi.listSessions(type, projectName, sessionPage.value, pageSize.value)
       sessions.value = data.items
       sessionTotal.value = data.total
     } finally {
@@ -57,25 +56,31 @@ export const useSessionStore = defineStore('sessions', () => {
     }
   }
 
-  async function fetchMessages(projectName: string, sessionId: string) {
+  async function fetchMessages(projectName: string, sessionId: string, cliType?: CliType) {
     loading.value = true
     currentSession.value = sessionId
     try {
-      const { data } = await sessionsApi.getSessionMessages(currentCliType.value, projectName, sessionId)
+      const uiStore = useUiStore()
+      const type = cliType || uiStore.sessionsActiveCliType
+      const { data } = await sessionsApi.getSessionMessages(type, projectName, sessionId)
       messages.value = data
     } finally {
       loading.value = false
     }
   }
 
-  async function deleteSession(projectName: string, sessionId: string) {
-    await sessionsApi.deleteSession(currentCliType.value, projectName, sessionId)
+  async function deleteSession(projectName: string, sessionId: string, cliType?: CliType) {
+    const uiStore = useUiStore()
+    const type = cliType || uiStore.sessionsActiveCliType
+    await sessionsApi.deleteSession(type, projectName, sessionId)
     sessions.value = sessions.value.filter(s => s.session_id !== sessionId)
     sessionTotal.value = Math.max(0, sessionTotal.value - 1)
   }
 
-  async function deleteProject(projectName: string) {
-    await sessionsApi.deleteProject(currentCliType.value, projectName)
+  async function deleteProject(projectName: string, cliType?: CliType) {
+    const uiStore = useUiStore()
+    const type = cliType || uiStore.sessionsActiveCliType
+    await sessionsApi.deleteProject(type, projectName)
     projects.value = projects.value.filter(p => p.name !== projectName)
     projectTotal.value = Math.max(0, projectTotal.value - 1)
   }
@@ -98,7 +103,6 @@ export const useSessionStore = defineStore('sessions', () => {
     sessions,
     messages,
     loading,
-    currentCliType,
     currentProject,
     currentProjectInfo,
     currentSession,
@@ -107,7 +111,6 @@ export const useSessionStore = defineStore('sessions', () => {
     sessionPage,
     sessionTotal,
     pageSize,
-    setCliType,
     fetchProjects,
     fetchSessions,
     fetchMessages,

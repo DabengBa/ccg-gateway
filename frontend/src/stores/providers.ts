@@ -2,25 +2,22 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { providersApi } from '@/api/providers'
 import type { Provider, ProviderCreate, ProviderUpdate } from '@/types/models'
+import { useUiStore } from './ui'
 
 export const useProviderStore = defineStore('providers', () => {
   const providers = ref<Provider[]>([])
   const loading = ref(false)
-  const currentCliType = ref<string>('claude_code')
 
   async function fetchProviders(cliType?: string) {
     loading.value = true
     try {
-      const type = cliType || currentCliType.value
+      const uiStore = useUiStore()
+      const type = cliType || uiStore.providersActiveCliType
       const { data } = await providersApi.list(type)
       providers.value = data
     } finally {
       loading.value = false
     }
-  }
-
-  function setCliType(cliType: string) {
-    currentCliType.value = cliType
   }
 
   async function createProvider(data: ProviderCreate) {
@@ -61,9 +58,7 @@ export const useProviderStore = defineStore('providers', () => {
   return {
     providers,
     loading,
-    currentCliType,
     fetchProviders,
-    setCliType,
     createProvider,
     updateProvider,
     deleteProvider,
