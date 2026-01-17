@@ -70,10 +70,8 @@ class App:
             self.window.hide()
 
     def on_closing(self):
-        if self.tray.minimize_on_close:
-            self.hide_window()
-            return False  # Prevent window destruction
-        return True  # Allow window destruction
+        self.hide_window()
+        return False  # Prevent window destruction
 
     def quit(self):
         def _exit():
@@ -105,6 +103,7 @@ class App:
             f"http://{self.server.host}:{self.server.port}",
             width=1200,
             height=800,
+            maximized=True,
         )
         self.window.events.closing += self.on_closing
 

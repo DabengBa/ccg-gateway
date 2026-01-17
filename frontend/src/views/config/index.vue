@@ -256,6 +256,8 @@ onMounted(() => {
 }
 .column {
   flex: 1;
+  flex-basis: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
