@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # Logging
     LOG_TO_FILE: bool = False
 
+    # Auth
+    CCG_AUTH_ENABLED: bool = True
+    CCG_AUTH_TOKEN: str | None = None
+    CCG_AUTH_HEADER_NAME: str = "X-CCG-Token"
+
     class Config:
         env_file = get_env_file()
         case_sensitive = True
@@ -59,6 +64,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.CCG_AUTH_ENABLED and not settings.CCG_AUTH_TOKEN:
+    raise RuntimeError(
+        "CCG_AUTH_ENABLED=true but CCG_AUTH_TOKEN is not set. "
+        "Set CCG_AUTH_TOKEN in .env or environment variables, "
+        "or disable auth via CCG_AUTH_ENABLED=false."
+    )
 
 # Ensure data directory exists
 DATA_DIR = get_data_dir()
