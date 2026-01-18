@@ -35,7 +35,7 @@ def _truncate_body(body: bytes, max_len: int = 2000) -> str:
 # Headers to filter out when forwarding
 FILTERED_HEADERS = {
     "host", "connection", "keep-alive", "transfer-encoding",
-    "te", "trailer", "upgrade", "content-length"
+    "te", "trailer", "upgrade", "content-length", "x-ccg-token"
 }
 
 # Shared HTTP client for connection pooling
