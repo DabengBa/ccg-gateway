@@ -6,6 +6,15 @@ const instance = axios.create({
   timeout: 30000
 })
 
+instance.interceptors.request.use(config => {
+  const token = localStorage.getItem('ccg_gateway_token')
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers['X-CCG-Token'] = token
+  }
+  return config
+})
+
 instance.interceptors.response.use(
   response => response,
   error => {
