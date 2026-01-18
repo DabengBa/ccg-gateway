@@ -61,6 +61,30 @@
       </div>
 
       <div class="column">
+        <el-card class="config-card">
+          <template #header>网关鉴权 Token</template>
+          <el-form label-width="140px">
+            <el-form-item label="当前状态">
+              <el-tag :type="gatewayToken ? 'success' : 'warning'">
+                {{ gatewayToken ? '已设置' : '未设置' }}
+              </el-tag>
+            </el-form-item>
+            <el-form-item label="Token">
+              <el-input
+                v-model="gatewayToken"
+                type="password"
+                show-password
+                placeholder="请输入网关 Token"
+                autocomplete="off"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="saveGatewayToken">保存</el-button>
+              <el-button @click="clearGatewayToken" :disabled="!gatewayToken">清除</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
         <!-- CLI Settings -->
         <el-card class="config-card">
           <template #header>CLI全局配置</template>
@@ -104,6 +128,19 @@ import { useUiStore } from '@/stores/ui'
 import CliSettingsForm from './components/CliSettingsForm.vue'
 import * as backupApi from '@/api/backup'
 import type { WebdavSettings, WebdavBackup } from '@/api/backup'
+
+const gatewayToken = ref(localStorage.getItem('ccg_gateway_token') || '')
+
+function saveGatewayToken() {
+  localStorage.setItem('ccg_gateway_token', gatewayToken.value)
+  ElMessage.success('Token 已保存')
+}
+
+function clearGatewayToken() {
+  localStorage.removeItem('ccg_gateway_token')
+  gatewayToken.value = ''
+  ElMessage.success('Token 已清除')
+}
 
 const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
