@@ -36,7 +36,6 @@ cd ..
 echo.
 echo [3/3] Copying data files...
 if not exist "backend\dist\ccg-gateway\data" mkdir "backend\dist\ccg-gateway\data"
-if exist ".env" copy ".env" "backend\dist\ccg-gateway\.env"
 if exist ".env.example" copy ".env.example" "backend\dist\ccg-gateway\.env.example"
 
 echo.
