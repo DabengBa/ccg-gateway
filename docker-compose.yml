@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      GATEWAY_PORT: "7788"
+      LOG_TO_FILE: "1"
+      CCG_AUTH_ENABLED: "1"
+      # 必填：公网部署请设置强随机值
+      CCG_AUTH_TOKEN: "${CCG_AUTH_TOKEN:-}"
+      CCG_AUTH_HEADER_NAME: "${CCG_AUTH_HEADER_NAME:-X-CCG-Token}"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "7788:7788"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7788/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+
