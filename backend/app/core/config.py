@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Gateway defaults
     GATEWAY_PORT: int = 7788
-    GATEWAY_HOST: str = "0.0.0.0"
+    GATEWAY_HOST: str = "127.0.0.1"
 
     # Timeout defaults (seconds)
     STREAM_FIRST_BYTE_TIMEOUT: int = 30
