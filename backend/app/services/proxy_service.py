@@ -18,6 +18,8 @@ from app.services.log_service import LogService
 from app.models.models import Provider, TimeoutSettings, GatewaySettings
 from sqlalchemy import select
 
+from app.security.redaction import redact_headers
+
 logger = logging.getLogger(__name__)
 
 
@@ -222,12 +224,12 @@ class ProxyService:
                 f"  Method: {request.method}\n"
                 f"  Path: {client_path}\n"
                 f"  Query: {request.url.query}\n"
-                f"  Headers: {json.dumps(dict(request.headers), indent=2, ensure_ascii=False)}\n"
+                f"  Headers: {json.dumps(redact_headers(dict(request.headers)), indent=2, ensure_ascii=False)}\n"
                 f"  Body: {_truncate_body(body)}\n"
                 f"[DEBUG] === FORWARD REQUEST ===\n"
                 f"  Provider: {provider.name}{model_info}\n"
                 f"  Upstream URL: {upstream_url}\n"
-                f"  Headers: {json.dumps(headers, indent=2, ensure_ascii=False)}\n"
+                f"  Headers: {json.dumps(redact_headers(headers), indent=2, ensure_ascii=False)}\n"
                 f"  Body: {_truncate_body(forward_body)}\n"
                 f"  Stream: {is_stream}\n"
                 f"{'='*60}"
