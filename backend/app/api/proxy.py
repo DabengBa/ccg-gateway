@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 import httpx
 
 from app.services.routing_service import RoutingService
 from app.services.proxy_service import ProxyService
 from app.core.database import async_session_maker
+from app.security.token_auth import require_gateway_auth
 
-proxy_router = APIRouter()
+proxy_router = APIRouter(dependencies=[Depends(require_gateway_auth)])
 
 
 @proxy_router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])

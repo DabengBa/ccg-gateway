@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1 import providers, settings as settings_api, mcp, prompts, stats, logs, sessions, backup, window
+from app.security.token_auth import require_gateway_auth
 
-admin_router = APIRouter()
+admin_router = APIRouter(dependencies=[Depends(require_gateway_auth)])
 
 admin_router.include_router(providers.router, prefix="/providers", tags=["providers"])
 admin_router.include_router(settings_api.router, prefix="/settings", tags=["settings"])
