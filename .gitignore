@@ -29,6 +29,7 @@ Thumbs.db
 # Project specific
 .ace-tool/
 .claude/
+data/
 .env
 
 # Build artifacts
