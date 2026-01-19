@@ -70,40 +70,29 @@ pnpm install
 
 适合没有 Windows 环境或不想在本地安装依赖的用户。
 
-#### 环境要求
-
-- Docker
-- Docker Compose
-
 #### 启动步骤
 
 ```bash
-# 构建并启动服务
-docker-compose up -d
+# 构建镜像
+docker build -t ccg-gateway .
+
+# 启动容器
+docker run -d -p 7788:7788 -v ./data:/data --name ccg-gateway ccg-gateway
 
 # 查看日志
-docker-compose logs -f
+docker logs -f ccg-gateway
 
-# 停止服务
-docker-compose down
+# 停止容器
+docker stop ccg-gateway
 ```
 
 #### 访问地址
 
-| 服务 | 端口 | 访问地址 |
-|------|------|----------|
-| 前端界面 | 3000 | http://localhost:3000 |
-| 后端 API | 7788 | http://localhost:7788 |
+服务地址：http://localhost:7788
 
 #### 数据持久化
 
 配置数据和数据库文件保存在 `./data` 目录，容器重启后数据不会丢失。
-
-#### 注意事项
-
-- 首次启动需要构建镜像，可能需要几分钟时间
-- 前端使用开发模式运行，利用 Vite 的 proxy 功能代理后端请求
-- 如需修改端口，请编辑 `docker-compose.yml` 文件
 
 ---
 

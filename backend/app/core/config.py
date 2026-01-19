@@ -25,6 +25,7 @@ def get_frontend_dist() -> Path | None:
     获取前端静态文件目录路径
 
     桌面模式（打包后）：返回临时目录中的前端文件路径
+    Docker模式：通过 FRONTEND_DIST 环境变量指定路径
     开发模式：返回 None（前端应使用 Vite 开发服务器，支持热更新）
     """
     if IS_PACKAGED:
@@ -32,6 +33,13 @@ def get_frontend_dist() -> Path | None:
         meipass = getattr(sys, '_MEIPASS', None)
         if meipass:
             return Path(meipass) / "frontend" / "dist"
+    
+    # Docker模式：通过环境变量指定前端静态文件路径
+    import os
+    frontend_dist = os.environ.get("FRONTEND_DIST")
+    if frontend_dist:
+        return Path(frontend_dist)
+    
     # 开发模式：不提供静态文件服务，前端使用 Vite 开发服务器
     return None
 
