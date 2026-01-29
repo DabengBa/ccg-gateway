@@ -5,7 +5,8 @@
   "version": "0.1.0",
   "build": {
     "devUrl": "http://localhost:7786",
-    "beforeBuildCommand": "scripts\\build-frontend.bat",
+    "beforeDevCommand": "pnpm --dir frontend install && pnpm --dir frontend dev",
+    "beforeBuildCommand": "pnpm --dir frontend install && pnpm --dir frontend build",
     "frontendDist": "../frontend/dist"
   },
   "app": {
