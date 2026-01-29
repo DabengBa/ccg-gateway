@@ -62,38 +62,38 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install
       
-      - name: Build Tauri App
-        run: pnpm tauri build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      - name: Build Tauri App (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: pnpm tauri build --no-bundle
+      
+      - name: Build Tauri App (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: pnpm tauri build --bundles dmg
+      
+      - name: Build Tauri App (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: pnpm tauri build --bundles appimage
       
       - name: Upload artifacts (Windows)
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
+          path: src-tauri/target/release/ccg-gateway.exe
       
       - name: Upload artifacts (macOS)
         if: matrix.platform == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}
-          path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
+          path: src-tauri/target/release/bundle/dmg/*.dmg
       
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
-          path: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
   
   release:
     needs: build
