@@ -54,23 +54,23 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
       
-      - name: Install root dependencies
-        run: pnpm install
+      - name: Install Tauri CLI
+        run: pnpm add -g @tauri-apps/cli@latest
       
       - name: Install frontend dependencies
         run: pnpm --dir frontend install
       
       - name: Build Tauri App (Windows)
         if: matrix.platform == 'windows-latest'
-        run: pnpm tauri build --no-bundle
+        run: tauri build --no-bundle
       
       - name: Build Tauri App (macOS)
         if: matrix.platform == 'macos-latest'
-        run: pnpm tauri build --bundles dmg
+        run: tauri build --bundles dmg
       
       - name: Build Tauri App (Linux)
         if: matrix.platform == 'ubuntu-22.04'
-        run: pnpm tauri build --bundles appimage
+        run: tauri build --bundles appimage
       
       - name: Upload artifacts (Windows)
         if: matrix.platform == 'windows-latest'
