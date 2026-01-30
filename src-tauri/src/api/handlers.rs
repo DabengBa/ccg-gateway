@@ -117,7 +117,7 @@ pub async fn proxy_handler_catchall(
                 &state.log_db,
                 "warn",
                 "no_provider_available",
-                &format!("No available provider for CLI type: {}", cli_type),
+                &format!("CLI 类型 {} 没有可用的服务商", cli_type),
                 None,
                 None,
             ).await;
@@ -327,7 +327,7 @@ async fn handle_streaming_request(
                         &state.log_db,
                         "warn",
                         "provider_blacklisted",
-                        &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                        &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                         Some(&prov_name),
                         Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
@@ -362,7 +362,7 @@ async fn handle_streaming_request(
                         &state.log_db,
                         "warn",
                         "provider_blacklisted",
-                        &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                        &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                         Some(&prov_name),
                         Some("{\"error\": \"First byte timeout\"}"),
                     ).await;
@@ -557,7 +557,7 @@ async fn handle_streaming_request(
                         &log_state.log_db,
                         "info",
                         "provider_recovered",
-                        &format!("Provider {} recovered successfully", log_provider_name),
+                        &format!("服务商 {} 已恢复正常", log_provider_name),
                         Some(&log_provider_name),
                         None,
                     ).await;
@@ -569,7 +569,7 @@ async fn handle_streaming_request(
                     &log_state.log_db,
                     "warn",
                     "provider_blacklisted",
-                    &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                    &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                     Some(&prov_name),
                     final_log_info.error_message.as_deref(),
                 ).await;
@@ -627,7 +627,7 @@ async fn handle_non_streaming_request(
                         &state.log_db,
                         "warn",
                         "provider_blacklisted",
-                        &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                        &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                         Some(&prov_name),
                         Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
@@ -662,7 +662,7 @@ async fn handle_non_streaming_request(
                         &state.log_db,
                         "warn",
                         "provider_blacklisted",
-                        &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                        &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                         Some(&prov_name),
                         Some("{\"error\": \"Request timeout\"}"),
                     ).await;
@@ -710,7 +710,7 @@ async fn handle_non_streaming_request(
                         &state.log_db,
                         "warn",
                         "provider_blacklisted",
-                        &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                        &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                         Some(&prov_name),
                         Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
@@ -756,7 +756,7 @@ async fn handle_non_streaming_request(
                     &state.log_db,
                     "info",
                     "provider_recovered",
-                    &format!("Provider {} recovered successfully", provider_name),
+                    &format!("服务商 {} 已恢复正常", provider_name),
                     Some(provider_name),
                     None,
                 ).await;
@@ -768,7 +768,7 @@ async fn handle_non_streaming_request(
                 &state.log_db,
                 "warn",
                 "provider_blacklisted",
-                &format!("Provider {} blacklisted due to consecutive failures", prov_name),
+                &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
                 Some(&prov_name),
                 log_info.error_message.as_deref(),
             ).await;

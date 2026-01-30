@@ -79,7 +79,7 @@ pub fn run() {
                     &log_db_clone,
                     "info",
                     "gateway_started",
-                    &format!("CCG Gateway started on {}", addr),
+                    &format!("CCG Gateway 已在 {} 启动", addr),
                     None,
                     None,
                 ).await;

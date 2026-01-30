@@ -152,7 +152,7 @@ pub async fn create_provider(
         &log_db.0,
         "info",
         "provider_created",
-        &format!("Provider {} created", provider_name),
+        &format!("服务商 {} 已创建", provider_name),
         Some(&provider_name),
         None,
     ).await;
@@ -271,7 +271,7 @@ pub async fn update_provider(
             &log_db.0,
             "info",
             "provider_updated",
-            &format!("Provider {} updated", provider_name),
+            &format!("服务商 {} 已更新", provider_name),
             Some(&provider_name),
             None,
         ).await;
@@ -316,7 +316,7 @@ pub async fn delete_provider(
         &log_db.0,
         "info",
         "provider_deleted",
-        &format!("Provider {} deleted", provider_name),
+        &format!("服务商 {} 已删除", provider_name),
         Some(&provider_name),
         None,
     ).await;
@@ -365,7 +365,7 @@ pub async fn reset_provider_failures(
         &log_db.0,
         "info",
         "provider_reset",
-        &format!("Provider {} status manually reset", provider_name),
+        &format!("服务商 {} 状态已手动重置", provider_name),
         Some(&provider_name),
         None,
     ).await;
