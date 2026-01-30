@@ -255,8 +255,11 @@ async function handleDeleteProject(project: ProjectInfo) {
     )
     await sessionStore.deleteProject(project.name)
     ElMessage.success('项目已删除')
-  } catch {
-    // cancelled
+  } catch (e: any) {
+    if (e !== 'cancel' && e?.toString() !== 'cancel') {
+      console.error('Delete project error:', e)
+      ElMessage.error(e?.message || e?.toString() || '删除失败')
+    }
   }
 }
 
@@ -269,8 +272,12 @@ async function handleDeleteSession(session: SessionInfo) {
     )
     await sessionStore.deleteSession(sessionStore.currentProject, session.session_id)
     ElMessage.success('会话已删除')
-  } catch {
-    // cancelled
+  } catch (e: any) {
+    // Only show error if it's not a cancel action
+    if (e !== 'cancel' && e?.toString() !== 'cancel') {
+      console.error('Delete session error:', e)
+      ElMessage.error(e?.message || e?.toString() || '删除失败')
+    }
   }
 }
 

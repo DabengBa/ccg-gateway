@@ -1875,6 +1875,133 @@ fn get_cli_base_dir(cli_type: &str) -> std::path::PathBuf {
     }
 }
 
+/// Parse Claude Code session file to extract info (first_message, git_branch, summary)
+/// Returns (first_message, git_branch, summary)
+fn parse_claude_session_info(file_path: &std::path::Path) -> (String, String, String) {
+    use std::io::{BufRead, BufReader};
+    
+    let mut first_message = String::new();
+    let mut git_branch = String::new();
+    let mut summary = String::new();
+    
+    // Check file size to avoid reading very large files entirely
+    let file_size = file_path.metadata().map(|m| m.len()).unwrap_or(0);
+    let should_limit_read = file_size > 10 * 1024 * 1024; // 10MB
+    
+    let file = match std::fs::File::open(file_path) {
+        Ok(f) => f,
+        Err(_) => return (first_message, git_branch, summary),
+    };
+    
+    let reader = BufReader::new(file);
+    let mut lines_read = 0;
+    let max_lines = if should_limit_read { 50 } else { 200 };
+    
+    for line in reader.lines() {
+        if lines_read >= max_lines {
+            break;
+        }
+        lines_read += 1;
+        
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        
+        let data: serde_json::Value = match serde_json::from_str(line) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        
+        // Extract summary
+        if data.get("type").and_then(|t| t.as_str()) == Some("summary") {
+            if let Some(s) = data.get("summary").and_then(|s| s.as_str()) {
+                summary = s.to_string();
+            }
+        }
+        
+        // Extract git branch
+        if git_branch.is_empty() {
+            if let Some(branch) = data.get("gitBranch").and_then(|b| b.as_str()) {
+                git_branch = branch.to_string();
+            }
+        }
+        
+        // Extract first message from user type
+        if first_message.is_empty() && data.get("type").and_then(|t| t.as_str()) == Some("user") {
+            if let Some(message) = data.get("message") {
+                if let Some(content) = message.get("content") {
+                    let text = if let Some(content_str) = content.as_str() {
+                        // content is a string
+                        if content_str != "Warmup" {
+                            content_str.chars().take(200).collect::<String>()
+                        } else {
+                            String::new()
+                        }
+                    } else if let Some(content_arr) = content.as_array() {
+                        // content is an array of items
+                        let mut text_parts = Vec::new();
+                        for item in content_arr {
+                            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
+                                if let Some(t) = item.get("text").and_then(|t| t.as_str()) {
+                                    text_parts.push(t);
+                                }
+                            }
+                        }
+                        let joined = text_parts.join("\n");
+                        if !joined.is_empty() && joined != "Warmup" {
+                            joined.chars().take(200).collect::<String>()
+                        } else {
+                            String::new()
+                        }
+                    } else {
+                        String::new()
+                    };
+                    
+                    if !text.is_empty() {
+                        first_message = text;
+                    }
+                }
+            }
+        }
+    }
+    
+    (first_message, git_branch, summary)
+}
+
+/// Decode Claude Code project name to (display_name, full_path)
+/// Format: D--my-develop-project-other -> ("other", "D:\\my-develop\\project\\other")
+fn decode_claude_project_name(encoded_name: &str) -> (String, String) {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows format: D--path-parts (drive letter + double dash + path with single dashes)
+        if encoded_name.len() >= 3 && encoded_name.chars().nth(1) == Some('-') && encoded_name.chars().nth(2) == Some('-') {
+            let drive = encoded_name.chars().next().unwrap().to_uppercase().to_string();
+            let path_part = &encoded_name[3..]; // Skip "D--"
+            let path_parts: Vec<&str> = path_part.split('-').collect();
+            let full_path = format!("{}:\\{}", drive, path_parts.join("\\"));
+            let display_name = path_parts.last().unwrap_or(&encoded_name).to_string();
+            return (display_name, full_path);
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix format: starts with - then path parts separated by -
+        if encoded_name.starts_with("-") {
+            let parts: Vec<&str> = encoded_name[1..].split('-').collect();
+            let full_path = format!("/{}", parts.join("/"));
+            let display_name = parts.last().unwrap_or(&encoded_name).to_string();
+            return (display_name, full_path);
+        }
+    }
+    (encoded_name.to_string(), encoded_name.to_string())
+}
+
 // Extract cwd from Codex session file
 fn extract_codex_cwd(file_path: &std::path::Path) -> Option<String> {
     use std::io::{BufRead, BufReader};
@@ -1979,8 +2106,125 @@ fn get_codex_projects(sessions_dir: std::path::PathBuf, page: i64, page_size: i6
     })
 }
 
+/// Calculate SHA256 hash of a path (same as Gemini CLI)
+fn get_path_hash(path: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(path.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Build hash -> path mapping for Gemini projects using rainbow table method
+fn build_gemini_path_mapping(target_hashes: &std::collections::HashSet<String>) -> std::collections::HashMap<String, String> {
+    use std::collections::HashMap;
+    
+    let mut results: HashMap<String, String> = HashMap::new();
+    let home = dirs::home_dir().unwrap_or_default();
+    
+    // Define search paths with max depth
+    let mut search_paths: Vec<(std::path::PathBuf, usize)> = vec![
+        (home.clone(), 0),
+        (home.join("Desktop"), 4),
+        (home.join("Documents"), 4),
+        (home.join("Downloads"), 3),
+        (home.join("Projects"), 4),
+        (home.join("Code"), 4),
+        (home.join("workspace"), 4),
+        (home.join("dev"), 4),
+        (home.join("src"), 4),
+        (home.join("work"), 4),
+        (home.join("repos"), 4),
+        (home.join("github"), 4),
+    ];
+    
+    // Windows specific paths
+    #[cfg(target_os = "windows")]
+    {
+        for drive in ["C:", "D:", "E:", "F:"] {
+            let drive_path = std::path::PathBuf::from(format!("{}\\" , drive));
+            if drive_path.exists() {
+                search_paths.extend(vec![
+                    (drive_path.join("Projects"), 4),
+                    (drive_path.join("Code"), 4),
+                    (drive_path.join("workspace"), 4),
+                    (drive_path.join("dev"), 4),
+                    (drive_path.join("my-develop"), 5),
+                ]);
+            }
+        }
+    }
+    
+    fn scan_dir(
+        dir_path: &std::path::Path,
+        max_depth: usize,
+        current_depth: usize,
+        target_hashes: &std::collections::HashSet<String>,
+        results: &mut std::collections::HashMap<String, String>,
+    ) {
+        if current_depth > max_depth || results.len() >= target_hashes.len() {
+            return;
+        }
+        
+        // Calculate hash for current directory
+        let path_str = dir_path.to_string_lossy().to_string();
+        let path_hash = get_path_hash(&path_str);
+        if target_hashes.contains(&path_hash) && !results.contains_key(&path_hash) {
+            results.insert(path_hash, path_str);
+        }
+        
+        if results.len() >= target_hashes.len() {
+            return;
+        }
+        
+        // Scan subdirectories
+        if let Ok(entries) = std::fs::read_dir(dir_path) {
+            for entry in entries.flatten() {
+                let item_path = entry.path();
+                if !item_path.is_dir() {
+                    continue;
+                }
+                
+                let name = item_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("");
+                
+                // Skip hidden and common irrelevant directories
+                if name.starts_with('.') || 
+                   name == "node_modules" || 
+                   name == "venv" || 
+                   name == "__pycache__" ||
+                   name == "Library" ||
+                   name == "Applications" ||
+                   name == "target" ||
+                   name == "dist" ||
+                   name == "build" {
+                    continue;
+                }
+                
+                scan_dir(&item_path, max_depth, current_depth + 1, target_hashes, results);
+                if results.len() >= target_hashes.len() {
+                    return;
+                }
+            }
+        }
+    }
+    
+    for (search_path, depth) in search_paths {
+        if search_path.exists() {
+            scan_dir(&search_path, depth, 0, target_hashes, &mut results);
+        }
+        if results.len() >= target_hashes.len() {
+            break;
+        }
+    }
+    
+    results
+}
+
 // Handle Gemini projects (from hash directories with chats subfolder)
 fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -> Result<PaginatedProjects> {
+    use std::collections::HashSet;
+    
     if !tmp_dir.exists() {
         return Ok(PaginatedProjects {
             items: vec![],
@@ -1991,6 +2235,7 @@ fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -
     }
     
     let mut project_dirs: Vec<(std::path::PathBuf, f64)> = Vec::new();
+    let mut all_hashes: HashSet<String> = HashSet::new();
     
     if let Ok(entries) = std::fs::read_dir(&tmp_dir) {
         for entry in entries.flatten() {
@@ -2001,7 +2246,8 @@ fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -
             
             let name = path.file_name()
                 .and_then(|n| n.to_str())
-                .unwrap_or("");
+                .unwrap_or("")
+                .to_string();
             
             // Check if it's a valid 64-char hex hash
             if name.len() == 64 && name.chars().all(|c| c.is_ascii_hexdigit()) {
@@ -2012,6 +2258,7 @@ fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -
                             let secs = mtime.duration_since(std::time::UNIX_EPOCH)
                                 .map(|d| d.as_secs_f64())
                                 .unwrap_or(0.0);
+                            all_hashes.insert(name.clone());
                             project_dirs.push((path, secs));
                         }
                     }
@@ -2026,6 +2273,9 @@ fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -
     let total = project_dirs.len() as i64;
     let start = ((page - 1) * page_size) as usize;
     let page_dirs: Vec<_> = project_dirs.into_iter().skip(start).take(page_size as usize).collect();
+    
+    // Build path mapping using rainbow table method
+    let path_mapping = build_gemini_path_mapping(&all_hashes);
     
     let mut projects = Vec::new();
     for (path, _) in page_dirs {
@@ -2065,11 +2315,22 @@ fn get_gemini_projects(tmp_dir: std::path::PathBuf, page: i64, page_size: i64) -
         }
         
         if session_count > 0 {
-            let display_name = format!("Project {}", &hash_name[..8]);
+            // Try to get project path from rainbow table
+            let (display_name, full_path) = if let Some(real_path) = path_mapping.get(hash_name) {
+                let name = std::path::Path::new(real_path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&format!("Project {}", &hash_name[..8]))
+                    .to_string();
+                (name, real_path.clone())
+            } else {
+                (format!("Project {}", &hash_name[..8]), hash_name.to_string())
+            };
+            
             projects.push(ProjectInfo {
                 name: hash_name.to_string(),
                 display_name,
-                full_path: hash_name.to_string(),
+                full_path,
                 session_count,
                 total_size,
                 last_modified,
@@ -2383,6 +2644,59 @@ fn get_codex_messages(session_id: &str) -> Result<Vec<SessionMessage>> {
                             }
                         }
                     }
+                    // Reasoning summary
+                    else if item_type == Some("reasoning") {
+                        let summary = payload.get("summary").and_then(|s| s.as_array());
+                        if let Some(summary_arr) = summary {
+                            let text_parts: Vec<String> = summary_arr.iter()
+                                .filter_map(|item| {
+                                    if item.get("type").and_then(|t| t.as_str()) == Some("summary_text") {
+                                        item.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                            if !text_parts.is_empty() {
+                                messages.push(SessionMessage {
+                                    role: "assistant".to_string(),
+                                    content: format!("**[推理]**\n{}", text_parts.join("\n")),
+                                    timestamp,
+                                });
+                            }
+                        }
+                    }
+                    // Function call (tool use)
+                    else if item_type == Some("function_call") {
+                        let name = payload.get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("unknown");
+                        let arguments = payload.get("arguments")
+                            .and_then(|a| a.as_str())
+                            .unwrap_or("{}");
+                        let args_str = match serde_json::from_str::<serde_json::Value>(arguments) {
+                            Ok(args_obj) => serde_json::to_string_pretty(&args_obj).unwrap_or_else(|_| arguments.to_string()),
+                            Err(_) => arguments.to_string(),
+                        };
+                        messages.push(SessionMessage {
+                            role: "assistant".to_string(),
+                            content: format!("**[调用工具: {}]**\n```json\n{}\n```", name, args_str),
+                            timestamp,
+                        });
+                    }
+                    // Function call output (tool result)
+                    else if item_type == Some("function_call_output") {
+                        let output = payload.get("output")
+                            .and_then(|o| o.as_str())
+                            .unwrap_or("");
+                        if !output.is_empty() {
+                            messages.push(SessionMessage {
+                                role: "user".to_string(),
+                                content: format!("**[工具结果]**\n```\n{}\n```", output),
+                                timestamp,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -2414,16 +2728,60 @@ fn parse_claude_jsonl(content: &str) -> Result<Vec<SessionMessage>> {
                     let content_val = message.get("content");
                     
                     let content = if let Some(arr) = content_val.and_then(|c| c.as_array()) {
-                        arr.iter()
-                            .filter_map(|item| {
-                                if item.get("type").and_then(|t| t.as_str()) == Some("text") {
-                                    item.get("text").and_then(|t| t.as_str())
-                                } else {
-                                    None
+                        let mut text_parts = Vec::new();
+                        for item in arr {
+                            if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                                match item_type {
+                                    "text" => {
+                                        if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                            text_parts.push(text.to_string());
+                                        }
+                                    }
+                                    "tool_use" if role == "assistant" => {
+                                        // Tool call from assistant
+                                        let tool_name = item.get("name")
+                                            .and_then(|n| n.as_str())
+                                            .unwrap_or("unknown");
+                                        let tool_input = item.get("input");
+                                        let input_str = if let Some(input) = tool_input {
+                                            serde_json::to_string_pretty(input).unwrap_or_else(|_| "{}".to_string())
+                                        } else {
+                                            "{}".to_string()
+                                        };
+                                        text_parts.push(format!("**[调用工具: {}]**\n```json\n{}\n```", tool_name, input_str));
+                                    }
+                                    "tool_result" if role == "user" => {
+                                        // Tool result from user
+                                        let result_content = item.get("content");
+                                        let result_str = if let Some(content) = result_content {
+                                            if let Some(s) = content.as_str() {
+                                                s.to_string()
+                                            } else {
+                                                serde_json::to_string_pretty(content).unwrap_or_else(|_| "".to_string())
+                                            }
+                                        } else {
+                                            String::new()
+                                        };
+                                        if !result_str.is_empty() {
+                                            text_parts.push(format!("**[工具结果]**\n```\n{}\n```", result_str));
+                                        }
+                                    }
+                                    "thinking" if role == "assistant" => {
+                                        // Thinking from assistant
+                                        if let Some(thinking) = item.get("thinking").and_then(|t| t.as_str()) {
+                                            if !thinking.is_empty() {
+                                                text_parts.push(format!("**[思考]**\n{}", thinking));
+                                            }
+                                        }
+                                    }
+                                    "image" => {
+                                        text_parts.push("[图片]".to_string());
+                                    }
+                                    _ => {}
                                 }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n")
+                            }
+                        }
+                        text_parts.join("\n\n")
                     } else if let Some(text) = content_val.and_then(|c| c.as_str()) {
                         text.to_string()
                     } else {
@@ -2497,6 +2855,18 @@ pub async fn get_session_projects(
                         for session in sessions.flatten() {
                             let session_path = session.path();
                             if session_path.is_file() {
+                                // Only count .jsonl files, exclude index and agent files
+                                let ext = session_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                                if ext != "jsonl" {
+                                    continue;
+                                }
+                                let stem = session_path.file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("");
+                                if stem == "sessions-index" || stem.starts_with("agent-") {
+                                    continue;
+                                }
+                                
                                 session_count += 1;
                                 if let Ok(meta) = session_path.metadata() {
                                     total_size += meta.len() as i64;
@@ -2513,17 +2883,17 @@ pub async fn get_session_projects(
                         }
                     }
 
-                    let display_name = if cli_type == "claude_code" {
-                        // Decode path from project name
-                        name.replace("-", "/").replace("_", ":")
+                    let (display_name, full_path) = if cli_type == "claude_code" {
+                        // Decode path from project name (format: -D-my-develop-project-other)
+                        decode_claude_project_name(&name)
                     } else {
-                        name.clone()
+                        (name.clone(), path.to_string_lossy().to_string())
                     };
 
                     projects.push(ProjectInfo {
                         name: name.clone(),
                         display_name,
-                        full_path: path.to_string_lossy().to_string(),
+                        full_path,
                         session_count,
                         total_size,
                         last_modified,
@@ -2579,18 +2949,26 @@ pub async fn get_project_sessions(
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
+                    // Only process .jsonl files
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if ext != "jsonl" {
+                        continue;
+                    }
+                    
                     let session_id = path.file_stem()
                         .and_then(|n| n.to_str())
                         .unwrap_or("")
                         .to_string();
 
-                    if session_id.is_empty() {
+                    // Skip empty, index files, and agent files
+                    if session_id.is_empty() 
+                        || session_id == "sessions-index" 
+                        || session_id.starts_with("agent-") {
                         continue;
                     }
 
                     let mut size = 0i64;
                     let mut mtime = 0f64;
-                    let mut first_message = String::new();
 
                     if let Ok(meta) = path.metadata() {
                         size = meta.len() as i64;
@@ -2601,45 +2979,15 @@ pub async fn get_project_sessions(
                         }
                     }
 
-                    // Try to read first message from JSON
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                            // Claude Code format
-                            if let Some(messages) = json.get("messages").and_then(|m| m.as_array()) {
-                                for msg in messages {
-                                    if msg.get("type").and_then(|t| t.as_str()) == Some("human") {
-                                        if let Some(content) = msg.get("content") {
-                                            if let Some(arr) = content.as_array() {
-                                                for item in arr {
-                                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                                        first_message = text.chars().take(200).collect();
-                                                        break;
-                                                    }
-                                                }
-                                            } else if let Some(text) = content.as_str() {
-                                                first_message = text.chars().take(200).collect();
-                                            }
-                                        }
-                                        break;
-                                    }
-                                    // Gemini format
-                                    if msg.get("type").and_then(|t| t.as_str()) == Some("user") {
-                                        if let Some(text) = msg.get("content").and_then(|c| c.as_str()) {
-                                            first_message = text.chars().take(200).collect();
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Try to read first message from JSONL (Claude Code uses JSONL format)
+                    let (first_message, git_branch, _) = parse_claude_session_info(&path);
 
                     sessions.push(SessionInfo {
                         session_id,
                         size,
                         mtime,
                         first_message,
-                        git_branch: String::new(),
+                        git_branch,
                         summary: String::new(),
                     });
                 }
@@ -2698,38 +3046,81 @@ pub async fn get_session_messages(
         // Standard format with messages array
         for msg in msgs {
             let msg_type = msg.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            let role = match msg_type {
-                "human" | "user" => "user",
-                "assistant" | "ai" | "gemini" => "assistant",  // Add "gemini" type
-                _ => continue,
-            };
-
-            let content = if let Some(content_val) = msg.get("content") {
-                if let Some(arr) = content_val.as_array() {
-                    arr.iter()
-                        .filter_map(|item| item.get("text").and_then(|t| t.as_str()))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else if let Some(text) = content_val.as_str() {
-                    text.to_string()
-                } else {
-                    continue;
-                }
-            } else {
-                continue;
-            };
-
+            
             let timestamp = msg.get("timestamp").and_then(|t| t.as_str()).map(|s| {
                 chrono::DateTime::parse_from_rfc3339(s)
                     .ok()
                     .map(|dt| dt.timestamp())
             }).flatten();
-
-            messages.push(SessionMessage {
-                role: role.to_string(),
-                content,
-                timestamp,
-            });
+            
+            if msg_type == "user" {
+                // User message
+                let content = if let Some(content_val) = msg.get("content") {
+                    if let Some(text) = content_val.as_str() {
+                        text.to_string()
+                    } else {
+                        continue;
+                    }
+                } else {
+                    continue;
+                };
+                
+                if !content.is_empty() {
+                    messages.push(SessionMessage {
+                        role: "user".to_string(),
+                        content,
+                        timestamp,
+                    });
+                }
+            } else if msg_type == "gemini" || msg_type == "assistant" || msg_type == "ai" {
+                // Gemini/Assistant message - may contain content, thoughts, and toolCalls
+                let mut text_parts = Vec::new();
+                
+                // Get main content
+                if let Some(content_val) = msg.get("content") {
+                    if let Some(text) = content_val.as_str() {
+                        if !text.is_empty() {
+                            text_parts.push(text.to_string());
+                        }
+                    }
+                }
+                
+                // Handle thoughts
+                if let Some(thoughts) = msg.get("thoughts").and_then(|t| t.as_array()) {
+                    for thought in thoughts {
+                        if let Some(desc) = thought.get("description").and_then(|d| d.as_str()) {
+                            if !desc.is_empty() {
+                                text_parts.push(format!("**[思考]**\n{}", desc));
+                            }
+                        }
+                    }
+                }
+                
+                // Handle tool calls
+                if let Some(tool_calls) = msg.get("toolCalls").and_then(|t| t.as_array()) {
+                    for tool_call in tool_calls {
+                        let tool_name = tool_call.get("displayName")
+                            .or_else(|| tool_call.get("name"))
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("unknown");
+                        let result_display = tool_call.get("resultDisplay")
+                            .and_then(|r| r.as_str())
+                            .unwrap_or("");
+                        if !result_display.is_empty() {
+                            text_parts.push(format!("**[工具: {}]**\n{}", tool_name, result_display));
+                        }
+                    }
+                }
+                
+                let final_content = text_parts.join("\n\n");
+                if !final_content.is_empty() {
+                    messages.push(SessionMessage {
+                        role: "assistant".to_string(),
+                        content: final_content,
+                        timestamp,
+                    });
+                }
+            }
         }
     } else if let Some(conversation) = json.as_object() {
         // Try to parse as flat object with role-based keys
@@ -2765,14 +3156,46 @@ pub async fn delete_session(
     session_id: String,
 ) -> Result<()> {
     let base_dir = get_cli_base_dir(&cli_type);
+    
+    // Special handling for Codex - need to search recursively
+    if cli_type == "codex" {
+        use walkdir::WalkDir;
+        let sessions_dir = base_dir.join("sessions");
+        for entry in WalkDir::new(&sessions_dir)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    if stem == session_id {
+                        // Verify the cwd matches project_name
+                        if let Some(cwd) = extract_codex_cwd(path) {
+                            if cwd == project_name {
+                                std::fs::remove_file(path)
+                                    .map_err(|e| format!("Failed to delete session: {}", e))?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Err("Session file not found".to_string());
+    }
+    
     let session_file = match cli_type.as_str() {
-        "codex" => base_dir.join("sessions").join(format!("{}.jsonl", session_id)),
         "gemini" => base_dir.join("tmp").join(&project_name).join("chats").join(format!("{}.json", session_id)),
         _ => base_dir.join("projects").join(&project_name).join(format!("{}.jsonl", session_id)),
     };
 
+    if !session_file.exists() {
+        return Err(format!("Session file not found: {}", session_file.display()));
+    }
+
     std::fs::remove_file(&session_file)
-        .map_err(|e| format!("Failed to delete session: {}", e))?;
+        .map_err(|e| format!("Failed to delete session '{}': {}", session_file.display(), e))?;
 
     Ok(())
 }
